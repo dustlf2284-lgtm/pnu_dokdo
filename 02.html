@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>독도 역사 아카이브 및 분석 (Dokdo History Archives)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #fdfbf7; /* Warm Paper Background */
+            color: #1f2937;
+        }
+        
+        .serif-font {
+            font-family: 'Noto Serif KR', serif;
+        }
+
+        /* Custom Scrollbar for the list container */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Chart Container Constraint Class */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Constraint width */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 350px;
+        }
+        
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 24px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #e2e8f0;
+            z-index: 0;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutral Background (#fdfbf7), Ocean Blue Primary (#1e3a8a), Historical Red Accent (#991b1b), Slate Text -->
+    <!-- Application Structure Plan: Dashboard layout. Top section for aggregate analysis (Charts) to give context. Bottom section split into Interactive Timeline (Left) and Detail View (Right). Designed to allow users to first understand the 'shape' of history via data, then explore specific events chronologically. -->
+    <!-- Visualization & Content Choices: 
+         1. Timeline Frequency Chart (Bar): Goal: Show historical activity density. Method: Chart.js Bar. Interaction: Visual only.
+         2. Evidence Origin Chart (Doughnut): Goal: Categorize sources (KR vs JP vs Intl). Method: Chart.js Doughnut. Interaction: Legend click.
+         3. Interactive Timeline List: Goal: Exploration. Method: Tailwind styled list with JS click handlers.
+         4. Detail Card: Goal: Deep dive. Method: Dynamic HTML update based on selection.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-[#1e3a8a] text-white py-6 shadow-md">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold serif-font tracking-wide">독도 역사 아카이브</h1>
+                <p class="text-blue-200 text-sm mt-1">Dokdo History Archives & Analytics</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="hidden md:block text-right">
+                    <span class="text-xs bg-blue-800 px-3 py-1 rounded-full">Historical Data Analysis</span>
+                </div>
+                <a href="index.html" class="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 border border-blue-700 px-3 py-1.5 rounded-lg transition-colors text-sm shadow-sm">
+                    <span>🏠</span>
+                    <span class="font-medium">Home</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 space-y-8">
+
+        <!-- Intro Section -->
+        <section class="bg-white rounded-lg p-6 card-shadow border-l-4 border-[#1e3a8a]">
+            <h2 class="text-xl font-bold mb-2 text-gray-800">역사적 맥락과 데이터 (Historical Context)</h2>
+            <p class="text-gray-600 leading-relaxed">
+                본 아카이브는 1454년 <span class="font-semibold">세종실록지리지</span>부터 2011년 일본 교과서 왜곡 논란까지, 독도와 관련된 주요 역사적 사건과 문헌을 집대성했습니다. 
+                아래의 대시보드를 통해 시대별 사건의 빈도와 증거의 유형을 분석하고, 인터랙티브 타임라인을 통해 개별 사건의 상세 내용을 탐구해 보십시오.
+                이 자료는 독도가 역사적, 지리적, 국제법적으로 대한민국의 고유 영토임을 보여주는 흐름을 시각화합니다.
+            </p>
+        </section>
+
+        <!-- Dashboard Section: Charts -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Chart 1: Temporal Distribution -->
+            <div class="bg-white p-6 rounded-lg card-shadow">
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <span>📊</span> 시대별 사건 빈도 분석
+                    </h3>
+                    <p class="text-sm text-gray-500">어느 시기에 독도 관련 이슈나 기록이 집중되었는지 보여줍니다.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Source Type Analysis -->
+            <div class="bg-white p-6 rounded-lg card-shadow">
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <span>📑</span> 기록 및 사건 유형 분석
+                    </h3>
+                    <p class="text-sm text-gray-500">문헌 기록, 외교 분쟁, 국제 조약 등 사건의 성격을 분석합니다.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="typeChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Interactive Explorer Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-auto lg:h-[800px]">
+            
+            <!-- Left: Filter & Timeline List (5 cols) -->
+            <div class="lg:col-span-5 flex flex-col bg-white rounded-lg card-shadow overflow-hidden h-[600px] lg:h-full">
+                <!-- Filters -->
+                <div class="p-4 border-b border-gray-100 bg-gray-50">
+                    <h3 class="font-bold text-gray-700 mb-3">연표 탐색 필터</h3>
+                    <div class="flex flex-wrap gap-2" id="filterContainer">
+                        <button onclick="filterData('all')" class="filter-btn active px-3 py-1 text-sm rounded-full bg-[#1e3a8a] text-white hover:bg-blue-800 transition">전체</button>
+                        <button onclick="filterData('Joseon')" class="filter-btn px-3 py-1 text-sm rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition">조선시대</button>
+                        <button onclick="filterData('Modern')" class="filter-btn px-3 py-1 text-sm rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition">근현대</button>
+                        <button onclick="filterData('Japan')" class="filter-btn px-3 py-1 text-sm rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition">일본측 기록/사건</button>
+                    </div>
+                </div>
+
+                <!-- Timeline List -->
+                <div id="timelineList" class="flex-grow overflow-y-auto custom-scroll relative p-4">
+                    <div class="timeline-line"></div>
+                    <!-- Items will be injected here via JS -->
+                </div>
+            </div>
+
+            <!-- Right: Detail View (7 cols) -->
+            <div class="lg:col-span-7 flex flex-col">
+                <div id="detailView" class="bg-white rounded-lg card-shadow h-full p-8 flex flex-col justify-center items-center text-center transition-all duration-300 sticky top-4">
+                    <!-- Default State -->
+                    <div class="text-gray-400">
+                        <span class="text-6xl block mb-4">👈</span>
+                        <p class="text-xl">연표에서 사건을 선택하여<br>상세 내용을 확인하세요.</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-gray-400 py-6 mt-8">
+        <div class="container mx-auto px-4 text-center text-sm">
+            <p>© 2024 Dokdo History Interactive Analytics. Data based on historical records provided.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- 1. Data Store ---
+        // Data derived from the provided source report.
+        // Categories added for analytical purposes.
+        const timelineData = [
+            { year: 1454, title: "세종실록지리지", content: "우산(독도)과 무릉(울릉도)이 강원도 울진현에 속한다고 기록함. 독도가 한국의 영토임을 입증하는 가장 오래된 관찬 문헌 중 하나.", type: "Korean Record", era: "Joseon", icon: "📜" },
+            { year: 1531, title: "신증동국여지승람", content: "독도가 우리 영토임을 밝히는 관찬 지리지 편찬. 조선 전기의 지리 인식을 보여주는 중요한 자료.", type: "Korean Record", era: "Joseon", icon: "📘" },
+            { year: 1667, title: "은주시청합기", content: "일본의 문헌. 울릉도와 독도가 일본 영토 밖, 즉 조선 땅임을 일본 스스로 기록한 최초의 문헌.", type: "Japanese Record", era: "Joseon", icon: "🇯🇵" },
+            { year: 1693, title: "1차 안용복 사건", content: "안용복이 일본으로 끌려가 독도가 조선 땅임을 강력히 주장하고 돌아옴. 민간 차원의 영토 수호 활동.", type: "Incident", era: "Joseon", icon: "🚣" },
+            { year: 1696, title: "2차 안용복 사건", content: "안용복이 일본에 건너가 불법 침범에 항의함. 이에 일본 막부가 '울릉도 도해 금지령'을 내려 조선 영토임을 인정함.", type: "Incident", era: "Joseon", icon: "🚫" },
+            { year: 1785, title: "삼국접양지도", content: "일본 학자 하야시 시헤이가 제작한 지도. 독도를 조선색(황색)으로 칠하고 옆에 '조선의 것'이라고 명기함.", type: "Map/Geo", era: "Joseon", icon: "🗺️" },
+            { year: 1877, title: "태정관 지령", content: "일본 최고 행정기관인 태정관이 '독도와 울릉도는 일본과 관계없다'고 공식적으로 인정하고 지령을 내림.", type: "Japanese Admin", era: "Modern", icon: "🏛️" },
+            { year: 1900, title: "대한제국 칙령 41호", content: "고종 황제가 독도를 울릉군의 관할 구역으로 공식 반포함. 근대 국제법적으로 영유권을 재확인한 조치.", type: "Korean Law", era: "Modern", icon: "👑" },
+            { year: 1905, title: "시마네현 고시 40호", content: "일본이 러일전쟁 중 군사적 목적으로 독도를 불법적으로 '다케시마'로 편입한다고 일방적으로 고시함.", type: "Japanese Admin", era: "Modern", icon: "⚔️" },
+            { year: 1906, title: "심흥택 보고서", content: "울릉군수 심흥택이 독도가 일본에 편입되었다는 소식을 듣고 즉각 중앙 정부에 보고하여 부당함을 알림.", type: "Korean Record", era: "Modern", icon: "📝" },
+            { year: 1946, title: "SCAPIN 제677호", content: "연합군최고사령관 지령(SCAPIN)으로 독도를 일본의 통치권 및 행정권에서 명시적으로 제외함.", type: "International", era: "Modern", icon: "⚖️" },
+            { year: 1951, title: "샌프란시스코 강화조약", content: "일본이 한국의 독립을 인정함. 그러나 독도 명시가 누락되어 이후 분쟁의 씨앗이 됨.", type: "International", era: "Modern", icon: "🤝" },
+            { year: 1952, title: "평화선 선포", content: "이승만 대통령이 독도를 포함한 인접 해양에 대한 주권을 선언(평화선).", type: "Korean Policy", era: "Modern", icon: "🌊" },
+            { year: 1953, title: "독도의용수비대 활동", content: "홍순칠 등 민간인들이 독도에 상주하며 무장하여 일본의 침범을 막아냄.", type: "Civil Activity", era: "Modern", icon: "🛡️" },
+            { year: 1965, title: "한일기본조약", content: "한일 국교 정상화 과정에서 독도 문제를 구체적으로 언급하지 않고 봉합함. 갈등이 잠복하는 계기.", type: "Diplomacy", era: "Modern", icon: "✍️" },
+            { year: 1998, title: "신한일어업협정", content: "독도가 한일 중간수역에 포함되면서 어업권 및 영유권 관련 논란이 발생함.", type: "Diplomacy", era: "Modern", icon: "🐟" },
+            { year: 2005, title: "다케시마의 날 제정", content: "일본 시마네현이 2월 22일을 '다케시마의 날'로 제정하여 영유권 주장을 노골화함.", type: "Japanese Admin", era: "Modern", icon: "📆" },
+            { year: 2011, title: "일본 교과서 왜곡", content: "일본 중학교 교과서 14종에 독도 영유권 주장이 기술됨. 교육을 통한 역사 왜곡 심화.", type: "Japanese Education", era: "Modern", icon: "📚" }
+        ];
+
+        // --- 2. State Management ---
+        let currentFilter = 'all';
+        let selectedId = null;
+
+        // --- 3. Chart Initialization ---
+        function initCharts() {
+            // Data Processing for Charts
+            // 1. By Century (approximate grouping for visualization)
+            const centuryCounts = { '15세기': 0, '16세기': 0, '17세기': 0, '18세기': 0, '19세기': 0, '20세기 이후': 0 };
+            
+            timelineData.forEach(d => {
+                if (d.year < 1500) centuryCounts['15세기']++;
+                else if (d.year < 1600) centuryCounts['16세기']++;
+                else if (d.year < 1700) centuryCounts['17세기']++;
+                else if (d.year < 1800) centuryCounts['18세기']++;
+                else if (d.year < 1900) centuryCounts['19세기']++;
+                else centuryCounts['20세기 이후']++;
+            });
+
+            // 2. By Type Category (Simplified)
+            const typeCounts = { '한국측 기록/활동': 0, '일본측 기록/주장': 0, '국제/외교': 0 };
+            timelineData.forEach(d => {
+                if (d.type.includes('Korean') || d.type.includes('Civil') || d.type === 'Incident') typeCounts['한국측 기록/활동']++;
+                else if (d.type.includes('Japanese') || d.type === 'Map/Geo') typeCounts['일본측 기록/주장']++;
+                else typeCounts['국제/외교']++;
+            });
+
+            // Chart 1: Timeline Bar Chart
+            const ctx1 = document.getElementById('timelineChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(centuryCounts),
+                    datasets: [{
+                        label: '사건/기록 수',
+                        data: Object.values(centuryCounts),
+                        backgroundColor: 'rgba(30, 58, 138, 0.7)',
+                        borderColor: 'rgba(30, 58, 138, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (context) => `${context.raw}건의 주요 기록` } }
+                    }
+                }
+            });
+
+            // Chart 2: Type Doughnut Chart
+            const ctx2 = document.getElementById('typeChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeCounts),
+                    datasets: [{
+                        data: Object.values(typeCounts),
+                        backgroundColor: [
+                            '#3b82f6', // Korean - Blue
+                            '#ef4444', // Japanese - Red
+                            '#fbbf24'  // Intl - Amber
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // --- 4. Render Logic ---
+        function renderTimeline() {
+            const listContainer = document.getElementById('timelineList');
+            listContainer.innerHTML = '<div class="timeline-line"></div>'; // Reset and keep line
+
+            const filteredData = timelineData.filter(item => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'Joseon') return item.era === 'Joseon';
+                if (currentFilter === 'Modern') return item.era === 'Modern';
+                if (currentFilter === 'Japan') return item.type.includes('Japanese') || item.type === 'Map/Geo';
+                return true;
+            });
+
+            filteredData.forEach((item, index) => {
+                const isSelected = selectedId === index;
+                
+                const el = document.createElement('div');
+                el.className = `relative pl-10 py-3 cursor-pointer group transition-all duration-200 ${isSelected ? 'scale-[1.02]' : 'hover:pl-11'}`;
+                el.onclick = () => selectEvent(item, index);
+
+                // Dot on timeline
+                const dot = document.createElement('div');
+                dot.className = `absolute left-[19px] top-6 w-3 h-3 rounded-full border-2 border-white shadow-sm z-10 transition-colors ${isSelected ? 'bg-[#1e3a8a] scale-125' : 'bg-gray-300 group-hover:bg-blue-400'}`;
+                
+                // Content Card
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-lg border-l-4 shadow-sm transition-all ${isSelected ? 'bg-blue-50 border-[#1e3a8a]' : 'bg-white border-transparent hover:shadow-md'}`;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">${item.year}</span>
+                        <span class="text-xs text-gray-400">${item.type}</span>
+                    </div>
+                    <h4 class="font-bold text-gray-800 mt-1">${item.title}</h4>
+                    <p class="text-xs text-gray-500 truncate mt-1">${item.content}</p>
+                `;
+
+                el.appendChild(dot);
+                el.appendChild(card);
+                listContainer.appendChild(el);
+            });
+        }
+
+        function selectEvent(item, index) {
+            selectedId = index;
+            renderTimeline(); // Re-render to update highlights
+
+            const detailView = document.getElementById('detailView');
+            
+            // Generate detailed view content
+            // Using different colors for types
+            let badgeColor = "bg-gray-100 text-gray-600";
+            if(item.type.includes("Korean")) badgeColor = "bg-blue-100 text-blue-800";
+            if(item.type.includes("Japanese")) badgeColor = "bg-red-100 text-red-800";
+
+            detailView.innerHTML = `
+                <div class="w-full h-full flex flex-col items-start text-left animate-fade-in">
+                    <div class="w-full flex justify-between items-center border-b pb-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl shadow-sm rounded-full bg-white p-2">${item.icon}</span>
+                            <div>
+                                <h2 class="text-3xl font-bold serif-font text-[#1e3a8a]">${item.year}년</h2>
+                                <span class="text-sm font-semibold ${badgeColor} px-2 py-1 rounded">${item.type}</span>
+                            </div>
+                        </div>
+                        <div class="text-right hidden md:block">
+                            <span class="text-sm text-gray-400">시대 구분</span>
+                            <p class="font-medium text-gray-600">${item.era === 'Joseon' ? '조선시대' : '근현대'}</p>
+                        </div>
+                    </div>
+                    
+                    <h1 class="text-2xl font-bold text-gray-900 mb-6">${item.title}</h1>
+                    
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-100 w-full mb-6">
+                        <h3 class="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wider">주요 내용 (Summary)</h3>
+                        <p class="text-lg text-gray-800 leading-relaxed font-serif">
+                            ${item.content}
+                        </p>
+                    </div>
+
+                    <div class="mt-auto pt-6 border-t w-full flex justify-between items-center text-sm text-gray-500">
+                        <span>역사적 중요도: ⭐️⭐️⭐️⭐️⭐️</span>
+                        <button class="text-blue-600 hover:text-blue-800 font-bold" onclick="selectEventByOffset(1)">다음 사건 보기 →</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Helper to navigate via Detail View buttons
+        function selectEventByOffset(offset) {
+            if (selectedId === null) return;
+            const nextIndex = selectedId + offset;
+            if (nextIndex >= 0 && nextIndex < timelineData.length) {
+                selectEvent(timelineData[nextIndex], nextIndex);
+                // Scroll into view logic could go here
+            }
+        }
+
+        // --- 5. Filter Logic ---
+        function filterData(filterType) {
+            currentFilter = filterType;
+            selectedId = null; // Reset selection on filter change
+            
+            // Update buttons
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => {
+                // Determine if this is the clicked button based on text/onclick content logic
+                // Simple workaround: Remove active class from all, add to clicked target in cleaner React way, 
+                // but here we just re-style based on match.
+                btn.classList.remove('bg-[#1e3a8a]', 'text-white');
+                btn.classList.add('bg-white', 'text-gray-600');
+            });
+            
+            // Highlight active button (Visual logic only for this demo)
+            const activeBtn = Array.from(buttons).find(b => b.getAttribute('onclick').includes(filterType));
+            if(activeBtn) {
+                activeBtn.classList.remove('bg-white', 'text-gray-600');
+                activeBtn.classList.add('bg-[#1e3a8a]', 'text-white');
+            }
+
+            renderTimeline();
+            
+            // Reset Detail View
+            document.getElementById('detailView').innerHTML = `
+                <div class="text-gray-400 text-center">
+                    <span class="text-6xl block mb-4">👈</span>
+                    <p class="text-xl">목록이 갱신되었습니다.<br>사건을 다시 선택해주세요.</p>
+                </div>
+            `;
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            initCharts();
+            renderTimeline();
+        };
+
+    </script>
+</body>
+</html>
